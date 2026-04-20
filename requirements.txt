@@ -4,7 +4,7 @@
 # Data Processing
 pandas>=2.0.0
 numpy>=1.24.0
-openpyxl>=3.10.0
+openpyxl>=3.0.0
 
 # HTTP & Web
 requests>=2.31.0
