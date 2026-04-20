@@ -74,10 +74,10 @@ services:
         echo 'Esperando schema...' &&
         sleep 5 &&
         echo 'FASE 1: DESCARGANDO SNIES' &&
-        python descargador_snies_produccion_final.py &&
+        python scripts/descargador_snies_produccion_final.py &&
         echo '' &&
         echo 'FASE 2: CARGANDO ETL' &&
-        python cargador_etl.py &&
+        python scripts/cargador_etl.py &&
         echo '' &&
         echo 'COMPLETADO' &&
         sleep 3600

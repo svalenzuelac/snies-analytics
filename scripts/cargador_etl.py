@@ -363,7 +363,7 @@ def main():
     
     cadena_conexion = "postgresql://" + bd_usuario + ":" + bd_contrasena + "@" + bd_host + ":" + bd_puerto + "/" + bd_nombre
     
-    archivo_csv = "datos/crudos/snies_relacion_estudiante_docente.csv"
+    archivo_csv = "data/snies_relacion_estudiante_docente.csv"
     
     if not Path(archivo_csv).exists():
         logger.error("CSV no encontrado: " + archivo_csv)
