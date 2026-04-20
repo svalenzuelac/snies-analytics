@@ -14,12 +14,14 @@ COPY requirements.txt .
 # Instalar dependencias Python
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar scripts
-COPY descargador_snies_production_final.py .
-COPY etl_loader.py .
+# Copiar scripts desde carpeta scripts/
+COPY scripts/ /app/scripts/
 
-# Crear directorios
-RUN mkdir -p /app/data/raw /app/sql
+# Copiar SQL
+COPY sql/ /app/sql/
+
+# Crear directorios de datos
+RUN mkdir -p /app/data
 
 # Default: mostrar help
 CMD ["python", "--version"]
