@@ -1,0 +1,17 @@
+# SNIES Analytics Requirements
+# ETL + Database + Data Processing
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.10.0
+
+# HTTP & Web
+requests>=2.31.0
+
+# Database
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
