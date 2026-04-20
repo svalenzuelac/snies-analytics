@@ -98,7 +98,7 @@ class DescargadorSNIESProduccion:
         for nombre in MAPEO_ARCHIVOS.keys()
     }
     
-    def __init__(self, directorio_salida="datos/crudos"):
+    def __init__(self, directorio_salida="data"):
         self.directorio_salida = Path(directorio_salida)
         self._limpiar_directorio_seguro()
         self.directorio_salida.mkdir(parents=True, exist_ok=True)
