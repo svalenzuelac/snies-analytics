@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: snies_postgres
+    environment:
+      POSTGRES_DB: snies_analytics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - snies_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: snies_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@pgadmin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - snies_network
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: snies_metabase
+    ports:
+      - "3000:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabase
+      MB_DB_PORT: 5432
+      MB_DB_USER: postgres
+      MB_DB_PASS: postgres
+      MB_DB_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - snies_network
+
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: snies_etl
+    environment:
+      BD_HOST: postgres
+      BD_PUERTO: 5432
+      BD_NOMBRE: snies_analytics
+      BD_USUARIO: postgres
+      BD_CONTRASENA: postgres
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - snies_network
+    command: >
+      sh -c "
+        echo 'Esperando schema...' &&
+        sleep 5 &&
+        echo 'FASE 1: DESCARGANDO SNIES' &&
+        python descargador_snies_produccion_final.py &&
+        echo '' &&
+        echo 'FASE 2: CARGANDO ETL' &&
+        python cargador_etl.py &&
+        echo '' &&
+        echo 'COMPLETADO' &&
+        sleep 3600
+      "
+
+networks:
+  snies_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

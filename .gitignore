@@ -1,0 +1,55 @@
+# Datos crudos y sensibles
+data/raw/
+data/processed/
+*.csv
+*.xlsx
+*.xls
+
+# Cache y compilación
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.*.swp
+*.egg-info/
+dist/
+build/
+
+# Ambientes virtuales
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Bases de datos locales
+*.db
+*.sqlite3
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Docker
+.dockerignore
+
+# Pytest y cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Prefect (si usas)
+.prefect/
