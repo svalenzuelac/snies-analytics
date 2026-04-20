@@ -474,7 +474,7 @@ class DescargadorSNIESProduccion:
         logger.info("  docker-compose up")
 
 def main():
-    descargador = DescargadorSNIESProduccion(directorio_salida="datos/crudos")
+    descargador = DescargadorSNIESProduccion(directorio_salida="data")
     descargador.descargar_y_procesar()
 
 if __name__ == "__main__":
