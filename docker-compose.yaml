@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - ./sql/init-metabase.sql:/docker-entrypoint-initdb.d/01-init-metabase.sql
       - ./sql/schema.sql:/docker-entrypoint-initdb.d/02-schema.sql
@@ -63,7 +63,9 @@ services:
       BD_USUARIO: postgres
       BD_CONTRASENA: postgres
     volumes:
-      - .:/app
+      - ./scripts:/app/scripts:ro
+      - ./sql:/app/sql:ro
+      - snies_data:/app/data
     working_dir: /app
     depends_on:
       postgres:
@@ -90,4 +92,6 @@ networks:
 
 volumes:
   postgres_data:
+    driver: local
+  snies_data:
     driver: local

@@ -1,276 +1,172 @@
-# 📊 Estado Actual del Repositorio
+# Estado Actual del Repositorio — SNIES Analytics
 
-**Fecha**: 20 de Abril, 2026  
-**Estado**: ✅ LISTO PARA ENTREGA  
-**Versión**: 2.0
-
----
-
-## 🎯 Resumen Ejecutivo
-
-El repositorio **SNIES Analytics** está completamente funcional y listo para ser presentado. Incluye:
-
-- ✅ **Código limpio** reorganizado en estructura profesional
-- ✅ **3,500+ líneas de documentación** en español
-- ✅ **100% de requisitos del reto técnico** cubiertos
-- ✅ **Docker funcionando** sin conflictos de rutas
-- ✅ **4 commits limpios** con histórico claro
-- ✅ **Listo para GitHub público**
+**Fecha última actualización**: 24 de Abril, 2026  
+**Estado**: PRODUCTION READY — pipeline probado end-to-end con Docker  
+**Versión**: 4.0
 
 ---
 
-## 📁 Estructura Actual
+## Resultado de la prueba completa (24-abril-2026)
+
+Pipeline ejecutado exitosamente con `docker compose up --build`:
+
+```
+FASE 1 — Descarga
+  6 archivos Excel descargados del portal SNIES (~42 MB)
+  117 IES únicas de Bogotá identificadas
+  CSV generado: /app/data/snies_relacion_estudiante_docente.csv
+
+FASE 2 — ETL Medallion
+  bronce.snies_crudo                   → 351 registros
+  plata.snies_ies                      → 117 IES
+  plata.snies_estudiantes              → 351 registros
+  plata.snies_docentes                 → 351 registros
+  oro.dim_ies                          → 117 dimensiones
+  oro.dim_tiempo                       → 3 años (2022, 2023, 2024)
+  oro.hecho_relacion_estudiante_docente → 351 hechos
+  auditoria.registro_pipeline          → 3 logs
+
+Estado: EXITO — sin errores
+```
+
+---
+
+## Cómo correr el proyecto
+
+### Requisitos
+- Docker Desktop instalado y corriendo
+
+### Comando único
+
+```bash
+git clone https://github.com/svalenzuelac/snies-analytics.git
+cd snies-analytics
+docker compose up --build
+```
+
+Esperar ~3 minutos. Cuando aparezca `snies_etl | COMPLETADO` el sistema está listo.
+
+### Acceso a herramientas
+
+| Herramienta | URL / Host | Usuario | Contraseña |
+|---|---|---|---|
+| Metabase (BI) | http://localhost:3000 | Configurar en primer acceso | — |
+| PgAdmin web | http://localhost:5050 | admin@pgadmin.com | admin |
+| PostgreSQL externo | localhost:**5433** | postgres | postgres |
+| PostgreSQL desde Docker | postgres:5432 | postgres | postgres |
+
+> El puerto externo es **5433** (no 5432) para evitar conflicto con PostgreSQL local instalado en Windows.
+
+### Conectar PgAdmin desktop a Docker
+
+- Host: `127.0.0.1`
+- Port: `5433`
+- Database: `snies_analytics`
+- Username: `postgres`
+- Password: `postgres`
+
+### Conectar Metabase a PostgreSQL
+
+- Host: `postgres` *(nombre del contenedor, no localhost)*
+- Port: `5432`
+- Database: `snies_analytics`
+- Username: `postgres`
+- Password: `postgres`
+
+### Verificar datos
+
+```bash
+docker exec -it snies_postgres psql -U postgres -d snies_analytics -c \
+  "SELECT COUNT(*) FROM oro.hecho_relacion_estudiante_docente;"
+# Resultado esperado: 351
+
+docker exec -it snies_postgres psql -U postgres -d snies_analytics -c \
+  "SELECT * FROM auditoria.registro_pipeline ORDER BY creado_at;"
+# Muestra logs de cada fase: bronce, plata, oro
+```
+
+### Extraer archivos Excel del contenedor
+
+```bash
+docker cp snies_etl:/app/data/. ./data/
+```
+
+### Apagar
+
+```bash
+docker compose down        # conserva datos
+docker compose down -v     # borra datos (reinicio limpio)
+```
+
+---
+
+## Arquitectura de datos
+
+```
+Portal SNIES (6 archivos Excel)
+         ↓ descargador_snies_produccion_final.py
+data/snies_relacion_estudiante_docente.csv  (351 filas, 117 IES × 3 años)
+         ↓ cargador_etl.py
+BRONCE: bronce.snies_crudo                 (351 registros raw)
+         ↓
+PLATA:  plata.snies_ies                    (117 IES normalizadas)
+        plata.snies_estudiantes             (351 registros)
+        plata.snies_docentes               (351 registros)
+         ↓
+ORO:    oro.dim_ies                        (117 — dimensión IES)
+        oro.dim_tiempo                     (3 — años 2022, 2023, 2024)
+        oro.dim_sector                     (Oficial, Privado, Desconocido)
+        oro.hecho_relacion_estudiante_docente  (351 hechos + ratio calculado)
+         ↓
+VISTAS: oro.v_relacion_estudiante_docente  (vista principal con rankings)
+        oro.v_promedio_por_sue             (comparativa SUE vs No SUE)
+        oro.v_top_ies_by_ratio             (top por año, descendente)
+        oro.v_evolucion_ies                (evolución con LAG por IES)
+         ↓
+Metabase / PgAdmin / Tableau / Power BI
+```
+
+---
+
+## Bugs corregidos (sesiones 23-24 abril 2026)
+
+| # | Archivo | Problema | Fix |
+|---|---|---|---|
+| 1 | `cargador_etl.py` | BD default `snies_analisis` | → `snies_analytics` |
+| 2 | `queries_analisis.sql` | Schema `gold.` (26 ocurrencias) | → `oro.` |
+| 3 | `queries_analisis.sql` | Tabla `fact_relacion_...` | → `hecho_relacion_...` |
+| 4 | `queries_analisis.sql` | Columnas `is_active`, `year`, `ies_name` | → `esta_activo`, `año`, `nombre_ies` |
+| 5 | `queries_analisis.sql` | `audit.pipeline_log` | → `auditoria.registro_pipeline` |
+| 6 | `queries_analisis.sql` | `RANK()` en cláusula `WHERE` (SQL inválido) | Reescrito como subquery |
+| 7 | `schema.sql` | Vistas `v_top_ies_by_ratio` y `v_evolucion_ies` no existían | Agregadas |
+| 8 | Ambos scripts | Rutas relativas al CWD | Ancladas con `Path(__file__)` |
+| 9 | Ambos scripts | `subprocess.check_call` auto-install | Eliminado |
+| 10 | `descargador_snies_produccion_final.py` | `shutil.rmtree()` borra punto de montaje Docker | Reemplazado por borrado de archivos individuales |
+| 11 | `docker-compose.yaml` | `- .:/app` causaba `PermissionError` al escribir CSV | Separado en 3 volúmenes específicos |
+| 12 | `docker-compose.yaml` | Puerto 5432 conflicta con PostgreSQL local | Cambiado a 5433 externo |
+
+---
+
+## Estructura del proyecto
 
 ```
 snies-analytics/
 ├── scripts/
-│   ├── descargador_snies_produccion_final.py
-│   └── cargador_etl.py
+│   ├── descargador_snies_produccion_final.py   ← Fase A: descarga SNIES
+│   └── cargador_etl.py                          ← Fases B/C: ETL Medallion
 ├── sql/
-│   ├── schema.sql
-│   └── queries_analisis.sql
+│   ├── schema.sql                               ← 4 schemas, 4 tablas oro, 4 vistas
+│   ├── queries_analisis.sql                     ← 10 queries para BI
+│   └── init-metabase.sql                        ← Crea BD para Metabase
 ├── docs/
 │   ├── ARQUITECTURA.md
 │   ├── CONTRIBUTING.md
-│   ├── TROUBLESHOOTING.md
-│   └── ESCALABILIDAD.md
-├── data/
-│   └── .gitkeep
-├── README.md (534 líneas)
-├── ENTREGA_FINAL.md (540 líneas)
-├── INICIO_RAPIDO.md (89 líneas)
-├── ESTADO_ACTUAL.md (este archivo)
-├── VALIDACION_RUTAS.md (220 líneas)
-├── docker-compose.yaml ✅ ACTUALIZADO
-├── Dockerfile ✅ ACTUALIZADO
-├── requirements.txt
-├── LICENSE
-└── .gitignore
+│   ├── ESCALABILIDAD.md
+│   └── TROUBLESHOOTING.md
+├── data/                                        ← Ignorado por git (.gitignore)
+├── README.md
+├── ESTADO_ACTUAL.md                             ← Este archivo
+├── docker-compose.yaml
+├── Dockerfile
+└── requirements.txt
 ```
-
----
-
-## ✅ Verificaciones Completadas
-
-### Rutas (Sin Conflictos)
-- ✅ Descargador escribe en: `data/`
-- ✅ Cargador lee desde: `data/`
-- ✅ Docker ejecuta: `python scripts/descargador_snies_produccion_final.py`
-- ✅ Docker ejecuta: `python scripts/cargador_etl.py`
-- ✅ Schema cargado desde: `sql/schema.sql`
-
-### Docker Build
-- ✅ Dockerfile compila sin errores
-- ✅ Copia correcta de: `scripts/` → `/app/scripts/`
-- ✅ Copia correcta de: `sql/` → `/app/sql/`
-- ✅ Crea directorio: `/app/data`
-- ✅ Instala dependencias: `pip install -r requirements.txt`
-
-### Documentación
-- ✅ README.md (guía principal completa)
-- ✅ ENTREGA_FINAL.md (checklist de requisitos)
-- ✅ INICIO_RAPIDO.md (3 pasos para empezar)
-- ✅ 4 documentos técnicos en `/docs/`
-- ✅ VALIDACION_RUTAS.md (verificación de compatibilidad)
-
-### Commits
-- ✅ 4 commits limpios después del inicial
-- ✅ Mensajes descriptivos
-- ✅ Histórico coherente
-- ✅ Bajo tu nombre (SNIES Analytics)
-
----
-
-## 🚀 Próximos Pasos
-
-### 1. Docker Compose (Actualmente Ejecutándose)
-```bash
-docker-compose up --build
-# Espera 2-3 minutos hasta ver "COMPLETADO"
-```
-
-**Lo que está pasando**:
-1. PostgreSQL inicia (15-20 seg)
-2. Schema.sql se ejecuta (5-10 seg)
-3. Descargador SNIES descarga archivos (30-60 seg)
-4. Cargador ETL procesa datos (10-20 seg)
-5. Metabase se conecta (20-30 seg)
-6. Sistema listo (Total: 2-3 min)
-
-### 2. Acceder a Herramientas
-```
-🌐 Metabase:    http://localhost:3000    (admin@localhost / metabase123)
-🔧 PgAdmin:     http://localhost:5050    (admin@pgadmin.com / admin)
-📊 PostgreSQL:  localhost:5432           (postgres / postgres)
-```
-
-### 3. Verificar Datos
-```bash
-# Conectar a PostgreSQL
-psql -h localhost -U postgres -d snies_analytics
-
-# Ver datos
-SELECT COUNT(*) FROM oro.dim_ies;  -- Debería retornar: 117
-SELECT COUNT(*) FROM oro.fact_relacion_estudiante_docente;  -- 351
-```
-
-### 4. Subir a GitHub
-```bash
-git remote add origin https://github.com/TU_USUARIO/snies-analytics.git
-git branch -M main
-git push -u origin main
-```
-
-### 5. Presentar
-- Link GitHub
-- Demo en vivo en Metabase
-- Explicación arquitectura (README.md)
-
----
-
-## 📊 Métricas del Proyecto
-
-| Métrica | Valor |
-|---------|-------|
-| **Líneas de Documentación** | 3,500+ |
-| **Líneas de Código SQL** | ~500 |
-| **Líneas de Código Python** | ~800 |
-| **Archivos de Configuración** | 5 |
-| **Commits Realizados** | 4 (post-inicial) |
-| **Instituciones Cargadas** | 117 IES |
-| **Registros Procesados** | 351 (117 × 3 años) |
-| **Tablas en BD** | 13 |
-| **Vistas Analíticas** | 4 |
-| **Dashboards Metabase** | 3 |
-| **Servicios Docker** | 4 |
-| **Tiempo de Despliegue** | 2-3 minutos |
-| **Cobertura de Requisitos** | 100% |
-
----
-
-## 🎓 Documentación Disponible
-
-Para cada aspecto del proyecto, existe documentación completa:
-
-| Documento | Contenido | Audiencia |
-|-----------|----------|-----------|
-| **README.md** | Guía principal, arquitectura, instalación, queries | Todos |
-| **ENTREGA_FINAL.md** | Checklist de requisitos, métricas finales | Evaluadores |
-| **INICIO_RAPIDO.md** | 3 pasos para empezar | Usuarios nuevos |
-| **docs/ARQUITECTURA.md** | Detalles técnicos, Medallion, índices | Desarrolladores |
-| **docs/TROUBLESHOOTING.md** | Solución de 9 problemas comunes | Usuarios finales |
-| **docs/ESCALABILIDAD.md** | Plan para escalar a Colombia | Product/Exec |
-| **docs/CONTRIBUTING.md** | Guía de contribuciones | Desarrolladores |
-| **VALIDACION_RUTAS.md** | Verificación de rutas y compatibilidad | DevOps/QA |
-
----
-
-## ✨ Diferenciales del Proyecto
-
-### Profesionalismo
-- ✅ Estructura de carpetas empresarial
-- ✅ Documentación a nivel de producción
-- ✅ Código limpio y bien comentado
-- ✅ Decisiones técnicas justificadas
-
-### Completitud
-- ✅ Todas las fases del reto cubierta (A, B, C, D)
-- ✅ Todos los criterios de evaluación cumplidos
-- ✅ Plan de escalabilidad incluido
-- ✅ Troubleshooting detallado
-
-### Funcionalidad
-- ✅ Docker reproducible en cualquier máquina
-- ✅ Cero conflictos de rutas
-- ✅ ETL automatizado
-- ✅ 3 dashboards precargados
-
-### Entrega
-- ✅ Histórico de git limpio
-- ✅ Commits bien documentados
-- ✅ Listo para GitHub público
-- ✅ Listo para presentación
-
----
-
-## 🔍 Verificación Rápida
-
-Si necesitas verificar que todo está correcto:
-
-```bash
-# 1. Verificar estructura
-ls -la scripts/ sql/ docs/ data/
-
-# 2. Verificar archivos están en su lugar
-ls -1 *.md
-
-# 3. Verificar último commit
-git log --oneline -1
-
-# 4. Verificar cambios
-git status
-
-# 5. Verificar Docker
-docker-compose config | grep -A5 "etl"
-```
-
----
-
-## 📞 En Caso de Dudas
-
-| Problema | Documento | Sección |
-|----------|-----------|---------|
-| "¿Cómo instalo?" | INICIO_RAPIDO.md | Paso 1-3 |
-| "¿Cómo funciona?" | README.md | Arquitectura |
-| "¿Qué requisitos cubre?" | ENTREGA_FINAL.md | Mapeo Reto |
-| "Tengo error X" | TROUBLESHOOTING.md | Problema X |
-| "¿Cómo escalar?" | ESCALABILIDAD.md | Timeline |
-| "¿Cómo contribuir?" | CONTRIBUTING.md | Proceso |
-
----
-
-## 🎯 Estado por Fase
-
-### FASE A: Ingesta y Orquestación ✅
-- ✅ Descargador automático
-- ✅ Manejo de variabilidad
-- ✅ Arquitectura lista para Airflow
-- ✅ Ingesta de nuevos períodos
-
-### FASE B: Modelado de Datos ✅
-- ✅ Medallion Architecture
-- ✅ Trazabilidad completa
-- ✅ Star Schema optimizado
-- ✅ 4 vistas analíticas
-
-### FASE C: Accesibilidad y Backend ✅
-- ✅ PostgreSQL accesible
-- ✅ Compatible con Tableau
-- ✅ Vistas para BI
-
-### FASE D: DevOps y Despliegue ✅
-- ✅ Docker reproducible
-- ✅ 4 servicios orquestados
-- ✅ Despliegue en 2-3 minutos
-- ✅ Zero-configuration
-
----
-
-## 🏆 Conclusión
-
-El proyecto **SNIES Analytics** está en estado **PRODUCTION READY** y listo para:
-
-✅ Presentación a evaluadores  
-✅ Subir a GitHub público  
-✅ Uso en producción  
-✅ Escalamiento futuro  
-
-**No hay pendientes ni conflictos.**
-
----
-
-**Última actualización**: 20 de Abril, 2026  
-**Responsable**: SNIES Analytics Team  
-**Versión**: 2.0 - FINAL
-
-🎉 **¡LISTO PARA ENTREGA!** 🎉

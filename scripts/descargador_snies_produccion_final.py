@@ -8,18 +8,6 @@ Version produccion final
 - CSV limpio: elimina/escapa comas en nombres IES
 """
 
-import subprocess
-import sys
-
-print("=" * 70)
-print("Instalando dependencias...")
-print("=" * 70)
-
-subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", 
-                       "pandas", "requests", "openpyxl"])
-
-print("Dependencias instaladas\n")
-
 import requests
 import pandas as pd
 import openpyxl
@@ -27,7 +15,6 @@ import logging
 from pathlib import Path
 from datetime import datetime
 import json
-import shutil
 import os
 import re
 import unicodedata
@@ -121,32 +108,17 @@ class DescargadorSNIESProduccion:
     def _limpiar_directorio_seguro(self):
         if not self.directorio_salida.exists():
             return
-        
-        logger.info("Limpiando directorio anterior...")
-        try:
-            shutil.rmtree(self.directorio_salida)
-            logger.info("Borrado exitoso")
-        except PermissionError:
-            logger.warning("Permisos: intentando borrado selectivo")
-            try:
-                for raiz, carpetas, archivos in os.walk(self.directorio_salida, topdown=False):
-                    for archivo in archivos:
-                        try:
-                            os.remove(os.path.join(raiz, archivo))
-                        except:
-                            pass
-                    for nombre_carpeta in carpetas:
-                        try:
-                            os.rmdir(os.path.join(raiz, nombre_carpeta))
-                        except:
-                            pass
+
+        logger.info("Limpiando archivos anteriores...")
+        eliminados = 0
+        for archivo in self.directorio_salida.iterdir():
+            if archivo.is_file():
                 try:
-                    os.rmdir(self.directorio_salida)
-                except:
+                    archivo.unlink()
+                    eliminados += 1
+                except Exception:
                     pass
-                logger.info("Borrado selectivo completado")
-            except:
-                logger.warning("Continuando...")
+        logger.info(f"Eliminados {eliminados} archivo(s)")
     
     def detectar_hoja_datos(self, archivo_excel):
         wb = openpyxl.load_workbook(archivo_excel, data_only=True)
@@ -474,7 +446,8 @@ class DescargadorSNIESProduccion:
         logger.info("  docker-compose up")
 
 def main():
-    descargador = DescargadorSNIESProduccion(directorio_salida="data")
+    directorio_datos = Path(__file__).parent.parent / "data"
+    descargador = DescargadorSNIESProduccion(directorio_salida=directorio_datos)
     descargador.descargar_y_procesar()
 
 if __name__ == "__main__":

@@ -4,18 +4,7 @@ ETL para SNIES Analytics - Arquitectura Medallion
 Flujo: CSV (crudo) -> Bronce -> Plata -> Oro
 """
 
-import subprocess
 import sys
-
-print("=" * 70)
-print("Instalando dependencias...")
-print("=" * 70)
-
-subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", 
-                       "psycopg2-binary", "pandas", "sqlalchemy"])
-
-print("Dependencias instaladas\n")
-
 import psycopg2
 from psycopg2.extras import execute_batch
 import pandas as pd
@@ -332,7 +321,7 @@ class CargadorSNIES:
         logger.info("=" * 70)
         logger.info("CARGADOR SNIES - ARQUITECTURA MEDALLION")
         logger.info("=" * 70)
-        logger.info("CSV: " + archivo_csv)
+        logger.info("CSV: " + str(archivo_csv))
         
         try:
             self.conectar()
@@ -357,16 +346,16 @@ class CargadorSNIES:
 def main():
     bd_host = os.getenv('BD_HOST', 'postgres')
     bd_puerto = os.getenv('BD_PUERTO', '5432')
-    bd_nombre = os.getenv('BD_NOMBRE', 'snies_analisis')
+    bd_nombre = os.getenv('BD_NOMBRE', 'snies_analytics')
     bd_usuario = os.getenv('BD_USUARIO', 'postgres')
     bd_contrasena = os.getenv('BD_CONTRASENA', 'postgres')
     
     cadena_conexion = "postgresql://" + bd_usuario + ":" + bd_contrasena + "@" + bd_host + ":" + bd_puerto + "/" + bd_nombre
     
-    archivo_csv = "data/snies_relacion_estudiante_docente.csv"
-    
-    if not Path(archivo_csv).exists():
-        logger.error("CSV no encontrado: " + archivo_csv)
+    archivo_csv = Path(__file__).parent.parent / "data" / "snies_relacion_estudiante_docente.csv"
+
+    if not archivo_csv.exists():
+        logger.error("CSV no encontrado: " + str(archivo_csv))
         sys.exit(1)
     
     cargador = CargadorSNIES(cadena_conexion)

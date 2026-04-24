@@ -183,6 +183,42 @@ WHERE d_ies.esta_activo = TRUE
 GROUP BY d_tiempo.año, d_ies.es_sue
 ORDER BY d_tiempo.año DESC;
 
+DROP VIEW IF EXISTS oro.v_top_ies_by_ratio CASCADE;
+
+CREATE VIEW oro.v_top_ies_by_ratio AS
+SELECT
+    d_tiempo.año,
+    RANK() OVER (PARTITION BY d_tiempo.año ORDER BY f.estudiantes_por_docente DESC) AS posicion,
+    d_ies.nombre_ies,
+    CASE WHEN d_ies.es_sue THEN 'SUE' ELSE 'No SUE' END AS clasificacion_sue,
+    d_ies.sector_ies,
+    f.total_estudiantes,
+    f.total_docentes,
+    f.estudiantes_por_docente
+FROM oro.hecho_relacion_estudiante_docente f
+JOIN oro.dim_ies d_ies ON f.dim_ies_id = d_ies.dim_ies_id
+JOIN oro.dim_tiempo d_tiempo ON f.dim_tiempo_id = d_tiempo.dim_tiempo_id
+WHERE d_ies.esta_activo = TRUE;
+
+DROP VIEW IF EXISTS oro.v_evolucion_ies CASCADE;
+
+CREATE VIEW oro.v_evolucion_ies AS
+SELECT
+    d_ies.nombre_ies,
+    d_ies.sector_ies,
+    CASE WHEN d_ies.es_sue THEN 'SUE' ELSE 'No SUE' END AS clasificacion_sue,
+    d_tiempo.año,
+    f.total_estudiantes,
+    f.total_docentes,
+    f.estudiantes_por_docente,
+    LAG(f.estudiantes_por_docente) OVER (
+        PARTITION BY d_ies.dim_ies_id ORDER BY d_tiempo.año
+    ) AS ratio_ano_anterior
+FROM oro.hecho_relacion_estudiante_docente f
+JOIN oro.dim_ies d_ies ON f.dim_ies_id = d_ies.dim_ies_id
+JOIN oro.dim_tiempo d_tiempo ON f.dim_tiempo_id = d_tiempo.dim_tiempo_id
+WHERE d_ies.esta_activo = TRUE;
+
 /* ============================================================================
 AUDITORÍA
 ============================================================================ */

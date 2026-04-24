@@ -80,7 +80,7 @@ Automatizar la ingesta, transformación y análisis de datos del SNIES (Sistema 
 │     • Oficial, Privado                                 │
 │                                                         │
 │  📊 TABLA DE HECHOS:                                    │
-│  ├─ fact_relacion_estudiante_docente (351)            │
+│  ├─ hecho_relacion_estudiante_docente (351)           │
 │  │  • Métrica: ratio estudiante/docente               │
 │  │  • Total estudiantes, Total docentes               │
 │  │  • Índices optimizados para análisis               │
@@ -167,11 +167,14 @@ Este comando:
 
 #### 3️⃣ Acceder a las herramientas
 
-| Herramienta | URL | Usuario | Contraseña |
-|-------------|-----|---------|-----------|
-| **Metabase** | http://localhost:3000 | admin@localhost | metabase123 |
-| **PgAdmin** | http://localhost:5050 | admin@pgadmin.org | admin |
-| **PostgreSQL** | localhost:5432 | postgres | postgres |
+| Herramienta | URL / Host | Usuario | Contraseña |
+|-------------|-----------|---------|-----------|
+| **Metabase** | http://localhost:3000 | Se configura en el primer acceso | — |
+| **PgAdmin web** | http://localhost:5050 | admin@pgadmin.com | admin |
+| **PostgreSQL (externo)** | localhost:**5433** | postgres | postgres |
+| **PostgreSQL (desde Docker)** | postgres:5432 | postgres | postgres |
+
+> **Nota**: El puerto externo de PostgreSQL es **5433** para evitar conflicto con instalaciones locales. Desde dentro de Docker (Metabase) usar host `postgres` y puerto `5432`.
 
 ### Pasos Detallados
 
@@ -239,8 +242,11 @@ Al acceder a Metabase, encontrarás **3 dashboards precargados**:
 ### Conectar a PostgreSQL directamente
 
 ```bash
-# Desde terminal
-psql -h localhost -U postgres -d snies_analytics
+# Desde terminal (puerto 5433 para evitar conflicto con PostgreSQL local)
+psql -h localhost -p 5433 -U postgres -d snies_analytics
+
+# O desde dentro del contenedor
+docker exec -it snies_postgres psql -U postgres -d snies_analytics
 ```
 
 ### Queries SQL más útiles
@@ -259,11 +265,11 @@ WHERE nombre_ies ILIKE '%Universidad Nacional%';
 -- 4. Relación completa
 SELECT * FROM oro.v_relacion_estudiante_docente 
 WHERE año = 2024 
-ORDER BY ratio_estudiante_docente DESC;
+ORDER BY estudiantes_por_docente DESC;
 
 -- 5. Auditoría de cargas
 SELECT * FROM auditoria.registro_pipeline 
-ORDER BY fecha_inicio DESC;
+ORDER BY creado_at DESC;
 ```
 
 ### Acceso desde Tableau
@@ -271,7 +277,7 @@ ORDER BY fecha_inicio DESC;
 ```
 Configuración de conexión:
 - Server: localhost
-- Port: 5432
+- Port: 5433
 - Database: snies_analytics
 - Username: postgres
 - Password: postgres
@@ -280,7 +286,7 @@ Tablas disponibles:
 - oro.dim_ies
 - oro.dim_tiempo
 - oro.dim_sector
-- oro.fact_relacion_estudiante_docente
+- oro.hecho_relacion_estudiante_docente
 - oro.v_relacion_estudiante_docente (recomendado)
 ```
 
